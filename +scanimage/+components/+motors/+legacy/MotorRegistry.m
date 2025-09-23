@@ -1,17 +1,17 @@
 classdef MotorRegistry < scanimage.interfaces.Class
-    
+
     properties (Constant, Hidden)
         controllerMap = zlclInitControllerMap();
     end
-    
+
     methods (Static)
         function info = getControllerInfo(type)
             assert(ischar(type),'''type'' must be a stage controller type.');
             m = scanimage.components.motors.legacy.MotorRegistry.controllerMap;
-            
+
             keys = m.keys();
             idx = find(strcmpi(type,keys)); % case independent key lookup
-           
+
             if ~isempty(idx)
                 key = keys{idx(1)};
                 info = m(key);
@@ -24,7 +24,7 @@ end
 
 function m = zlclInitControllerMap
     m = containers.Map();
-    
+
     s = struct();
     s.Names = {'analog'};
     s.Class = 'dabs.generic.LSCPureAnalog';
@@ -35,7 +35,7 @@ function m = zlclInitControllerMap
     s.SafeReset = true;
     s.NumDimensions = 1;
     zlclAddMotor(m,s);
-    
+
     s = struct();
     s.Names = {'simulated.stage'};
     s.Class = 'dabs.simulated.Stage';
@@ -46,7 +46,7 @@ function m = zlclInitControllerMap
     s.SafeReset = true;
     s.NumDimensions = 3;
     zlclAddMotor(m,s);
-    
+
     s = struct();
     s.Names = {'simulated.piezo'};
     s.Class = 'dabs.simulated.Piezo';
@@ -57,7 +57,7 @@ function m = zlclInitControllerMap
     s.SafeReset = true;
     s.NumDimensions = 1;
     zlclAddMotor(m,s);
-    
+
     s = struct();
     s.Names = {'slm'};
     s.Class = 'dabs.generic.LSCSlm';
@@ -69,10 +69,21 @@ function m = zlclInitControllerMap
     s.NumDimensions = 1;
     zlclAddMotor(m,s);
     
+    s = struct();
+    s.Names = {'Newport ESP301','esp301'};     % aliases recognized in Config
+    s.Class = 'scanimage.components.motors.legacy.ESP301';  % your LSC class
+    s.ListName = 'Newport ESP301';
+    s.SupportFastZ = false;
+    s.SubType = '';
+    s.TwoStep.Enable = false;                  % set true if you implement two-step
+    s.SafeReset = true;
+    s.NumDimensions = 3;                       % change if you wire multi-axis
+    zlclAddMotor(m,s);
+
     list = what('scanimage/components/motors/legacy/MotorRegistry');
     if numel(list)
         assert(numel(list)<2,'Multiple motor registries found on path. Make sure only one scanimage installation is on the path.');
-        
+
         [~,list] = cellfun(@fileparts,list.m,'UniformOutput',false);
         list = strcat('scanimage.components.motors.legacy.MotorRegistry.',list);
         for i = 1:numel(list)
