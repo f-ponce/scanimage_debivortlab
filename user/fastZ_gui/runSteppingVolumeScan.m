@@ -1,6 +1,13 @@
 function runSteppingVolumeScan(hObject,data)
 
-global Controller state gh
+global Controller state
+
+% Get ScanImage model handle 
+if evalin('base','exist(''hSI'',''var'')')
+    hSI = evalin('base','hSI');
+else
+    error('ScanImage model ''hSI'' not found in base workspace.');
+end
 
 % handles to update GUI display
 h = data.Position_indicator_plot;
@@ -30,17 +37,30 @@ if stepping
     
     step_series = linspace(top_position,bottom_position,n_steps+1);
     
-    % check how many frames will be acquired per slice
-    n_frames = str2double(get(gh.mainControls.framesTotal,'String'));
+    % frames per slice from hSI instead of gh.mainControls
+    n_frames = hSI.hStackManager.framesPerSlice;
     display(sprintf('Acquiring %d frames per slice...',n_frames))
     
-    time_buffer = 0.5; % extra time to allow ScanImage per slice
-    slice_time  = n_frames*(1/state.acq.frameRate) + time_buffer;
+    % frame rate: prefer legacy 'state' if present, else use hSI
+    if isfield(state,'acq') && isfield(state.acq,'frameRate') && ~isempty(state.acq.frameRate)
+        frameRate = state.acq.frameRate;
+    else
+        frameRate = hSI.hRoiManager.scanFrameRate;
+    end
     
-    % check that # repeats in SI matches n_steps+1
-    if str2double(get(gh.mainControls.repeatsTotal,'String')) ~= n_steps+1
+    time_buffer = 0.5; % extra time to allow ScanImage per slice
+    slice_time  = n_frames*(1/frameRate) + time_buffer;
+    
+    % validate against hSI stack size (closest equivalent) -- AUTO-SET VOLUMES
+    desiredVolumes = n_steps + 1;
+    try
+        if hSI.hStackManager.numVolumes ~= desiredVolumes
+            hSI.hStackManager.numVolumes = desiredVolumes;   % auto-fix instead of erroring
+        end
+    catch ME
         set(hObject,'Value',~stepping)
-        error(sprintf('Total repeats in ScanImage must be set to %d',n_steps+1))
+        error('Total repeats in ScanImage must be set to %d (could not set automatically: %s)', ...
+              desiredVolumes, ME.message);
     end
     
     % lock out piezo GUI

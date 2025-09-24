@@ -335,12 +335,16 @@ Controller.TWS(1,trigPt,1)
 
 % Check whether the piezo will outrun ScanImage
 try
-    
-    global gh
-    frame_rate = str2double(get(gh.configurationControls.etFrameRate,'String'));
-    n_frames = str2double(get(gh.mainControls.framesTotal,'String'));
-    
-    
+    % ===== REPLACED legacy gh.* reads with hSI properties (no other changes) =====
+    if evalin('base','exist(''hSI'',''var'')')
+        hSI = evalin('base','hSI');
+        frame_rate = hSI.hRoiManager.scanFrameRate;
+        n_frames   = hSI.hStackManager.framesPerSlice;
+    else
+        error('ScanImage model ''hSI'' not found in base workspace.');
+    end
+    % ============================================================================
+
     % amount of time left in cycle after trigger is sent to SI
     period_remaining = (piezo_period - trigPt)/1e3; % time (sec) left in piezo period after trigger is sent to SI
     stack_period = (1/frame_rate)*n_frames; % time (sec) to acquire all requested frames in one volume
@@ -982,4 +986,4 @@ set(data.Write_button,'Enable','on')
 
 % Return to starting position
 starting_pos = str2double(get(data.Current_position_edit,'String'));
-Controller.MOV(getappdata(0,'E709_axisName'),starting_pos);
+Controller.MOV(getappdata(0,'E709_axisName'),starting_pos)

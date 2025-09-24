@@ -1,31 +1,23 @@
-function triggerScanImage(varargin)
+function triggerScanImage(~)
+% Arm ScanImage once; let external hardware TTLs (from the piezo -> NI) drive acquisition.
 
-% function triggerScanImage(verbose)
-%
-% INPUT
-% verbose(optional) - do report trigger
-%
-% Modified byt F.Ponce(2025), based on Kyle Honegger, July 2015
-
-
-if nargin < 1
-    verbose = 0;
+% Get ScanImage model
+if evalin('base','exist(''hSI'',''var'')')
+    hSI = evalin('base','hSI');
 else
-    verbose = varargin{1};
+    error('ScanImage model ''hSI'' not found in base workspace.');
 end
 
+% Persist arming so we don't re-start while already acquiring
+persistent armedOnce
+if isempty(armedOnce); armedOnce = false; end
 
-global scimTriggerObj
-
-if isempty(scimTriggerObj)
-    makeTriggers
+% Only arm if idle; afterwards, hardware TTLs advance acquisition
+if ~armedOnce
+    if strcmpi(hSI.acqState,'idle')
+        % Use startLoop if your SI config is "external trigger per frame/volume"
+        hSI.startLoop();
+    end
+    armedOnce = true;
 end
-
-% Trigger should be configured for "Rising Edge"
-outputSingleScan(scimTriggerObj,1)
-pause(0.001)
-outputSingleScan(scimTriggerObj,0)
-
-if verbose
-    display('ScanImage triggered')
 end
